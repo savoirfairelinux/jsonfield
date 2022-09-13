@@ -1,36 +1,25 @@
-jsonfield
-=========
+django-jsonfield
+----------------
 
-.. image:: https://circleci.com/gh/rpkilby/jsonfield.svg?style=shield
-  :target: https://circleci.com/gh/rpkilby/jsonfield
-.. image:: https://codecov.io/gh/rpkilby/jsonfield/branch/master/graph/badge.svg
-  :target: https://codecov.io/gh/rpkilby/jsonfield
-.. image:: https://img.shields.io/pypi/v/jsonfield.svg
-  :target: https://pypi.org/project/jsonfield
-.. image:: https://img.shields.io/pypi/l/jsonfield.svg
-  :target: https://pypi.org/project/jsonfield
+django-jsonfield is a reusable Django field that allows you to store validated JSON in your model.
 
-**jsonfield** is a reusable model field that allows you to store validated JSON, automatically handling
-serialization to and from the database. To use, add ``jsonfield.JSONField`` to one of your models.
+It silently takes care of serialization. To use, simply add the field to one of your models.
 
-**Note:** `django.contrib.postgres`_ now supports PostgreSQL's jsonb type, which includes extended querying
-capabilities. If you're an end user of PostgreSQL and want full-featured JSON support, then it is
-recommended that you use the built-in JSONField. However, jsonfield is still useful when your app
-needs to be database-agnostic, or when the built-in JSONField's extended querying is not being leveraged.
-e.g., a configuration field.
+Python 3 & Django 1.8 through 1.11 supported!
 
-.. _django.contrib.postgres: https://docs.djangoproject.com/en/dev/ref/contrib/postgres/fields/#jsonfield
+**Use PostgreSQL?** 1.0.0 introduced a breaking change to the underlying data type, so if you were using < 1.0.0 please read https://github.com/dmkoch/django-jsonfield/issues/57 before upgrading. Also, consider switching to Django's native JSONField that was added in Django 1.9.
 
+**Note:** There are a couple of third-party add-on JSONFields for Django. This project is django-jsonfield here on GitHub but is named `jsonfield on PyPI`_. There is another `django-jsonfield on Bitbucket`_, but that one is `django-jsonfield on PyPI`_. I realize this naming conflict is confusing and I am open to merging the two projects.
 
-Requirements
-------------
+.. _jsonfield on PyPI: https://pypi.python.org/pypi/jsonfield
+.. _django-jsonfield on Bitbucket: https://bitbucket.org/schinckel/django-jsonfield
+.. _django-jsonfield on PyPI: https://pypi.python.org/pypi/django-jsonfield
 
-**jsonfield** aims to support all current `versions of Django`_, however the explicity tested versions are:
+**Note:** Django 1.9 added native PostgreSQL JSON support in `django.contrib.postgres.fields.JSONField`_. This module is still useful if you need to support JSON in databases other than PostgreSQL or are creating a third-party module that needs to be database-agnostic. But if you're an end user using PostgreSQL and want full-featured JSON support, I recommend using the built-in JSONField from Django instead of this module.
 
-* **Python:** 3.6, 3.7, 3.8
-* **Django:** 2.2, 3.0
+.. _django.contrib.postgres.fields.JSONField: https://docs.djangoproject.com/en/dev/ref/contrib/postgres/fields/#jsonfield
 
-.. _versions of Django: https://www.djangoproject.com/download/#supported-versions
+**Note:** Semver is followed after the 1.0 release.
 
 
 Installation
@@ -50,59 +39,20 @@ Usage
     from jsonfield import JSONField
 
     class MyModel(models.Model):
-        json = JSONField()
-
-
-Querying
---------
-
-As stated above, ``JSONField`` is not intended to provide extended querying capabilities.
-That said, you may perform the same basic lookups provided by regular text fields (e.g.,
-``exact`` or ``regex`` lookups). Since values are stored as serialized JSON, it is highly
-recommended that you test your queries to ensure the expected results are returned.
-
-
-Handling null values
---------------------
-
-A model field's ``null`` argument typically controls whether null values may be stored in
-its column by setting a not-null constraint. However, because ``JSONField`` serializes its
-values (including nulls), this option instead controls *how* null values are persisted. If
-``null=True``, then nulls are **not** serialized and are stored as a null value in the
-database. If ``null=False``, then the null is instead stored in its serialized form.
-
-This in turn affects how null values may be queried. Both fields support exact matching:
-
-.. code-block:: python
-
-    MyModel.objects.filter(json=None)
-
-However, if you want to use the ``isnull`` lookup, you must set ``null=True``.
-
-.. code-block:: python
-
-    class MyModel(models.Model):
-        json = JSONField(null=True)
-
-    MyModel.objects.filter(json__isnull=True)
-
-Note that as ``JSONField.null`` does not prevent nulls from being stored, achieving this
-must instead be handled with a validator.
-
+      json = JSONField()
 
 Advanced Usage
 --------------
 
-By default python deserializes json into dict objects. This behavior differs from the standard json
-behavior  because python dicts do not have ordered keys. To overcome this limitation and keep the
-sort order of OrderedDict keys the deserialisation can be adjusted on model initialisation:
+By default python deserializes json into dict objects. This behavior differs from the standard json behavior because python dicts do not have ordered keys.
+
+To overcome this limitation and keep the sort order of OrderedDict keys the deserialisation can be adjusted on model initialisation:
 
 .. code-block:: python
 
     import collections
-
     class MyModel(models.Model):
-        json = JSONField(load_kwargs={'object_pairs_hook': collections.OrderedDict})
+      json = JSONField(load_kwargs={'object_pairs_hook': collections.OrderedDict})
 
 
 Other Fields
@@ -110,54 +60,60 @@ Other Fields
 
 **jsonfield.JSONCharField**
 
-Subclasses **models.CharField** instead of **models.TextField**.
+If you need to use your JSON field in an index or other constraint, you can use **JSONCharField** which subclasses **CharField** instead of **TextField**. You'll also need to specify a **max_length** parameter if you use this field.
 
 
-Running the tests
------------------
+Compatibility
+--------------
 
-The test suite requires ``tox``.
+django-jsonfield aims to support the same versions of Django currently maintained by the main Django project. See `Django supported versions`_, currently:
 
-.. code-block:: shell
+  * Django 1.8 (LTS) with Python 2.7, 3.3, 3.4, or 3.5
+  * Django 1.9 with Python 2.7, 3.4, or 3.5
+  * Django 1.10 with Python 2.7, 3.4, or 3.5
+  * Django 1.11 (LTS) with Python 2.7, 3.4, 3.5 or 3.6
 
-    $ pip install tox
-
-
-Then, run the ``tox`` command, which will run all test jobs.
-
-.. code-block:: shell
-
-    $ tox
-
-Or, to test just one job (for example Django 2.0 on Python 3.6):
-
-.. code-block:: shell
-
-    $ tox -e py36-django20
+.. _Django supported versions: https://www.djangoproject.com/download/#supported-versions
 
 
-Release Process
----------------
+Testing django-jsonfield Locally
+--------------------------------
 
-* Update changelog
-* Update package version in setup.py
-* Check supported versions in setup.py and readme
-* Create git tag for version
-* Upload release to PyPI test server
-* Upload release to official PyPI server
+To test against all supported versions of Django:
 
 .. code-block:: shell
 
-    $ pip install -U pip setuptools wheel twine
-    $ rm -rf dist/ build/
-    $ python setup.py sdist bdist_wheel
-    $ twine upload -r test dist/*
-    $ twine upload dist/*
+    $ docker-compose build && docker-compose up
 
+Or just one version (for example Django 1.10 on Python 3.5):
+
+.. code-block:: shell
+
+    $ docker-compose build && docker-compose run tox tox -e py35-1.10
+
+
+Travis CI
+---------
+
+.. image:: https://travis-ci.org/dmkoch/django-jsonfield.svg?branch=master
+   :target: https://travis-ci.org/dmkoch/django-jsonfield
+
+Contact
+-------
+Web: http://bradjasper.com
+
+Twitter: `@bradjasper`_
+
+Email: `contact@bradjasper.com`_
+
+
+
+.. _contact@bradjasper.com: mailto:contact@bradjasper.com
+.. _@bradjasper: https://twitter.com/bradjasper
 
 Changes
 -------
 
 Take a look at the `changelog`_.
 
-.. _changelog: https://github.com/rpkilby/jsonfield/blob/master/CHANGES.rst
+.. _changelog: https://github.com/dmkoch/django-jsonfield/blob/master/CHANGES.rst
